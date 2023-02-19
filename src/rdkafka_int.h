@@ -980,6 +980,10 @@ static RD_INLINE RD_UNUSED int rd_kafka_max_poll_exceeded(rd_kafka_t *rk) {
         if (rk->rk_type != RD_KAFKA_CONSUMER)
                 return 0;
 
+        int max_poll_interval_ms = rk->rk_conf.max_poll_interval_ms;
+        if (max_poll_interval_ms == 0)
+                return 0;
+
         last_poll = rd_atomic64_get(&rk->rk_ts_last_poll);
 
         /* Application is blocked in librdkafka function, see
@@ -987,8 +991,8 @@ static RD_INLINE RD_UNUSED int rd_kafka_max_poll_exceeded(rd_kafka_t *rk) {
         if (last_poll == INT64_MAX)
                 return 0;
 
-        exceeded = (int)((rd_clock() - last_poll) / 1000ll) -
-                   rk->rk_conf.max_poll_interval_ms;
+        exceeded =
+            (int)((rd_clock() - last_poll) / 1000ll) - max_poll_interval_ms;
 
         if (unlikely(exceeded > 0))
                 return exceeded;
@@ -1010,7 +1014,7 @@ static RD_INLINE RD_UNUSED int rd_kafka_max_poll_exceeded(rd_kafka_t *rk) {
  * @locks none
  */
 static RD_INLINE RD_UNUSED void rd_kafka_app_poll_blocking(rd_kafka_t *rk) {
-        if (rk->rk_type == RD_KAFKA_CONSUMER)
+        if (rk->rk_type == RD_KAFKA_CONSUMER && rk->rk_conf.max_poll_interval_ms != 0)
                 rd_atomic64_set(&rk->rk_ts_last_poll, INT64_MAX);
 }
 
@@ -1023,7 +1027,7 @@ static RD_INLINE RD_UNUSED void rd_kafka_app_poll_blocking(rd_kafka_t *rk) {
  * @locks none
  */
 static RD_INLINE RD_UNUSED void rd_kafka_app_polled(rd_kafka_t *rk) {
-        if (rk->rk_type == RD_KAFKA_CONSUMER)
+        if (rk->rk_type == RD_KAFKA_CONSUMER && rk->rk_conf.max_poll_interval_ms != 0)
                 rd_atomic64_set(&rk->rk_ts_last_poll, rd_clock());
 }
 

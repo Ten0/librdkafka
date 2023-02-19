@@ -1526,7 +1526,14 @@ void rd_kafka_JoinGroupRequest(rd_kafka_broker_t *rkb,
         rd_kafka_buf_write_kstr(rkbuf, group_id);
         rd_kafka_buf_write_i32(rkbuf, rk->rk_conf.group_session_timeout_ms);
         if (ApiVersion >= 1)
-                rd_kafka_buf_write_i32(rkbuf, rk->rk_conf.max_poll_interval_ms);
+                rd_kafka_buf_write_i32(
+                    rkbuf, /* this is supposed to be max_poll_interval_ms but
+                              since we are representing "skip check" with 0
+                              there we need to lie to the server otherwise it
+                              will drop us :( */
+                    rk->rk_conf.max_poll_interval_ms != 0
+                        ? rk->rk_conf.max_poll_interval_ms
+                        : rk->rk_conf.group_session_timeout_ms);
         rd_kafka_buf_write_kstr(rkbuf, member_id);
         if (ApiVersion >= 5)
                 rd_kafka_buf_write_kstr(rkbuf, group_instance_id);
@@ -1583,8 +1590,9 @@ void rd_kafka_JoinGroupRequest(rd_kafka_broker_t *rkb,
             /* Request timeout is max.poll.interval.ms + grace
              * if the broker supports it, else
              * session.timeout.ms + grace. */
-            (ApiVersion >= 1 ? rk->rk_conf.max_poll_interval_ms
-                             : rk->rk_conf.group_session_timeout_ms) +
+            ((ApiVersion >= 1 && rk->rk_conf.max_poll_interval_ms != 0)
+                 ? rk->rk_conf.max_poll_interval_ms
+                 : rk->rk_conf.group_session_timeout_ms) +
                 3000 /* 3s grace period*/,
             0);
 

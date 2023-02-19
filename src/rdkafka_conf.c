@@ -1112,10 +1112,10 @@ static const struct rd_kafka_property rd_kafka_properties[] = {
      "for long-time processing applications and then explicitly store "
      "offsets (using offsets_store()) *after* message processing, to "
      "make sure offsets are not auto-committed prior to processing "
-     "has finished. "
+     "has finished. (0 = disable). "
      "The interval is checked two times per second. "
      "See KIP-62 for more information.",
-     1, 86400 * 1000, 300000},
+     0, 86400 * 1000, 300000},
 
     /* Global consumer properties */
     {_RK_GLOBAL | _RK_CONSUMER | _RK_HIGH, "enable.auto.commit", _RK_C_BOOL,
@@ -3761,7 +3761,8 @@ const char *rd_kafka_conf_finalize(rd_kafka_type_t cltype,
                                    conf->fetch_max_bytes + 512);
                 }
 
-                if (conf->max_poll_interval_ms < conf->group_session_timeout_ms)
+                if (conf->max_poll_interval_ms != 0 &&
+                    conf->max_poll_interval_ms < conf->group_session_timeout_ms)
                         return "`max.poll.interval.ms`must be >= "
                                "`session.timeout.ms`";
 

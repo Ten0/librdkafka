@@ -2219,7 +2219,10 @@ rd_kafka_t *rd_kafka_new(rd_kafka_type_t type,
         rd_interval_init(&rk->rk_suppress.sparse_connect_random);
         mtx_init(&rk->rk_suppress.sparse_connect_lock, mtx_plain);
 
-        rd_atomic64_init(&rk->rk_ts_last_poll, rk->rk_ts_created);
+        rd_atomic64_init(&rk->rk_ts_last_poll,
+                         rk->rk_conf.max_poll_interval_ms != 0
+                             ? rk->rk_ts_created
+                             : INT64_MAX);
         rd_atomic32_init(&rk->rk_flushing, 0);
 
         rk->rk_rep             = rd_kafka_q_new(rk);
