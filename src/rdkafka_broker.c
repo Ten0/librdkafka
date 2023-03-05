@@ -2110,7 +2110,7 @@ rd_kafka_broker_reconnect_backoff(const rd_kafka_broker_t *rkb, rd_ts_t now) {
 static int rd_ut_reconnect_backoff(void) {
         rd_kafka_broker_t rkb = RD_ZERO_INIT;
         rd_kafka_conf_t conf  = {.reconnect_backoff_ms     = 10,
-                                .reconnect_backoff_max_ms = 90};
+                                 .reconnect_backoff_max_ms = 90};
         rd_ts_t now           = 1000000;
         int backoff;
 
@@ -3455,10 +3455,14 @@ static RD_WARN_UNUSED_RESULT int
 rd_kafka_broker_ops_serve(rd_kafka_broker_t *rkb, rd_ts_t timeout_us) {
         rd_kafka_op_t *rko;
         int cnt = 0;
+        struct timespec timeout_tspec;
 
-        while ((rko = rd_kafka_q_pop(rkb->rkb_ops, timeout_us, 0)) &&
-               (cnt++, !rd_kafka_broker_op_serve(rkb, rko)))
-                timeout_us = RD_POLL_NOWAIT;
+        rd_timeout_init_timespec_us(&timeout_tspec, timeout_us);
+
+        while ((rko = rd_kafka_q_pop(rkb->rkb_ops, &timeout_tspec, 0)) &&
+               (cnt++, !rd_kafka_broker_op_serve(rkb, rko))) {
+                rd_timeout_init_timespec(&timeout_tspec, RD_POLL_NOWAIT);
+        }
 
         return cnt;
 }

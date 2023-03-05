@@ -345,7 +345,7 @@ rd_kafka_op_filter(rd_kafka_q_t *rkq, rd_kafka_op_t *rko, int version) {
  * Locality: any thread
  */
 rd_kafka_op_t *rd_kafka_q_pop_serve(rd_kafka_q_t *rkq,
-                                    rd_ts_t timeout_us,
+                                    struct timespec *timeout_tspec,
                                     int32_t version,
                                     rd_kafka_q_cb_type_t cb_type,
                                     rd_kafka_q_serve_cb_t *callback,
@@ -359,10 +359,6 @@ rd_kafka_op_t *rd_kafka_q_pop_serve(rd_kafka_q_t *rkq,
 
         rd_kafka_yield_thread = 0;
         if (!(fwdq = rd_kafka_q_fwd_get(rkq, 0))) {
-                struct timespec timeout_tspec;
-
-                rd_timeout_init_timespec_us(&timeout_tspec, timeout_us);
-
                 while (1) {
                         rd_kafka_op_res_t res;
                         /* Keep track of current lock status to avoid
@@ -416,7 +412,7 @@ rd_kafka_op_t *rd_kafka_q_pop_serve(rd_kafka_q_t *rkq,
                                 mtx_lock(&rkq->rkq_lock);
 
                         if (cnd_timedwait_abs(&rkq->rkq_cond, &rkq->rkq_lock,
-                                              &timeout_tspec) != thrd_success) {
+                                              timeout_tspec) != thrd_success) {
                                 mtx_unlock(&rkq->rkq_lock);
                                 return NULL;
                         }
@@ -426,8 +422,8 @@ rd_kafka_op_t *rd_kafka_q_pop_serve(rd_kafka_q_t *rkq,
                 /* Since the q_pop may block we need to release the parent
                  * queue's lock. */
                 mtx_unlock(&rkq->rkq_lock);
-                rko = rd_kafka_q_pop_serve(fwdq, timeout_us, version, cb_type,
-                                           callback, opaque);
+                rko = rd_kafka_q_pop_serve(fwdq, timeout_tspec, version,
+                                           cb_type, callback, opaque);
                 rd_kafka_q_destroy(fwdq);
         }
 
@@ -435,9 +431,10 @@ rd_kafka_op_t *rd_kafka_q_pop_serve(rd_kafka_q_t *rkq,
         return rko;
 }
 
-rd_kafka_op_t *
-rd_kafka_q_pop(rd_kafka_q_t *rkq, rd_ts_t timeout_us, int32_t version) {
-        return rd_kafka_q_pop_serve(rkq, timeout_us, version,
+rd_kafka_op_t *rd_kafka_q_pop(rd_kafka_q_t *rkq,
+                              struct timespec *timeout_tspec,
+                              int32_t version) {
+        return rd_kafka_q_pop_serve(rkq, timeout_tspec, version,
                                     RD_KAFKA_Q_CB_RETURN, NULL, NULL);
 }
 
